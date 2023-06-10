@@ -3,8 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
-from .settings import *
-from .defo import *
+from settings import *
+from defo import *
+
+#SUPPORT ANIMATION FOR QUAD ELEMENTS (MODE & DEFO)
 
 
 def _anim_mode_2d(modeNo, sfac, nep, unDefoFlag, fmt_defo, fmt_undefo,
@@ -72,9 +74,8 @@ def _anim_mode_2d(modeNo, sfac, nep, unDefoFlag, fmt_defo, fmt_undefo,
             ax.set_ylim(ylim[0], ylim[1])
 
             nel = len(ele_tags)
-            Ecrd = np.zeros((nel, 2, 2))
-            # Ex = np.zeros((nel, 2))
-            # Ey = np.zeros((nel, 2))
+            Ex = np.zeros((nel, 2))
+            Ey = np.zeros((nel, 2))
             Ed = np.zeros((nel, 6))
             # time vector for one cycle (period)
             n_cycles = 10
@@ -83,20 +84,20 @@ def _anim_mode_2d(modeNo, sfac, nep, unDefoFlag, fmt_defo, fmt_undefo,
             lines = []
 
             for i, ele_tag in enumerate(ele_tags):
-                ele_node_tags = ops.eleNodes(ele_tag)
+                nd1, nd2 = ops.eleNodes(ele_tag)
 
-                for j, ele_node_tag in enumerate(ele_node_tags):
-                    Ecrd[i, j, :] = ops.nodeCoord(ele_node_tag)
-
-                # nd1, nd2 = ops.eleNodes(ele_tag)
                 # element x, y coordinates
-                # Ex[i, :] = np.array([ops.nodeCoord(nd1)[0],
-                #                      ops.nodeCoord(nd2)[0]])
-                # Ey[i, :] = np.array([ops.nodeCoord(nd1)[1],
-                #                      ops.nodeCoord(nd2)[1]])
+                Ex[i, :] = np.array([ops.nodeCoord(nd1)[0],
+                                     ops.nodeCoord(nd2)[0]])
+                Ey[i, :] = np.array([ops.nodeCoord(nd1)[1],
+                                     ops.nodeCoord(nd2)[1]])
 
-                Ed[i, :] = np.array([*ops.nodeEigenvector(ele_node_tags[0], modeNo)[:3],
-                                     *ops.nodeEigenvector(ele_node_tags[1], modeNo)[:3]])
+                Ed[i, :] = np.array([ops.nodeEigenvector(nd1, modeNo)[0],
+                                     ops.nodeEigenvector(nd1, modeNo)[1],
+                                     ops.nodeEigenvector(nd1, modeNo)[2],
+                                     ops.nodeEigenvector(nd2, modeNo)[0],
+                                     ops.nodeEigenvector(nd2, modeNo)[1],
+                                     ops.nodeEigenvector(nd2, modeNo)[2]])
 
                 lines.append(ax.plot([], [], **fmt_defo)[0])
 
@@ -109,13 +110,14 @@ def _anim_mode_2d(modeNo, sfac, nep, unDefoFlag, fmt_defo, fmt_undefo,
                 for j, ele_tag in enumerate(ele_tags):
 
                     if interpFlag:
-                        xcdi, ycdi = beam_defo_interp_2d(Ecrd[j, :, :],
+                        xcdi, ycdi = beam_defo_interp_2d(Ex[j, :],
+                                                         Ey[j, :],
                                                          Ed[j, :],
                                                          sfac*np.sin(t[i]),
                                                          nep)
                         lines[j].set_data(xcdi, ycdi)
                     else:
-                        xdi, ydi = beam_disp_ends(Ecrd[j, :, :], Ed[j, :],
+                        xdi, ydi = beam_disp_ends(Ex[j, :], Ey[j, :], Ed[j, :],
                                                   sfac*np.cos(t[i]))
                         lines[j].set_data(xdi, ydi)
 
@@ -139,56 +141,75 @@ def _anim_mode_2d(modeNo, sfac, nep, unDefoFlag, fmt_defo, fmt_undefo,
 
     # 2d quadrilateral (quad) elements
     elif nen == 4:
-        for ele_tag in ele_tags:
+        ax.axis('equal')
+        ax.grid(False)
+        ax.set_xlim(xlim[0], xlim[1])
+        ax.set_ylim(ylim[0], ylim[1])
+        
+        nel = len(ele_tags)
+        Ex = np.zeros((nel, 4))
+        Ey = np.zeros((nel, 4))
+        
+        n_cycles = 10
+        n_frames = n_cycles * 32 + 1
+        t = np.linspace(0., n_cycles*2*np.pi, n_frames)
+        Ed = np.zeros((nel, 8))
+        lines = []
+        
+        time_text = ax.text(.05, .95, '', transform=ax.transAxes)
+        
+        for i, ele_tag in enumerate(ele_tags):
             nd1, nd2, nd3, nd4 = ops.eleNodes(ele_tag)
 
             # element x, y coordinates
-            ex = np.array([ops.nodeCoord(nd1)[0],
-                           ops.nodeCoord(nd2)[0],
-                           ops.nodeCoord(nd3)[0],
-                           ops.nodeCoord(nd4)[0]])
-            ey = np.array([ops.nodeCoord(nd1)[1],
-                           ops.nodeCoord(nd2)[1],
-                           ops.nodeCoord(nd3)[1],
-                           ops.nodeCoord(nd4)[1]])
+            Ex[i, :] = np.array([ops.nodeCoord(nd1)[0],
+                                 ops.nodeCoord(nd2)[0],
+                                 ops.nodeCoord(nd3)[0],
+                                 ops.nodeCoord(nd4)[0]])
+            Ey[i, :] = np.array([ops.nodeCoord(nd1)[1],
+                                 ops.nodeCoord(nd2)[1],
+                                 ops.nodeCoord(nd3)[1],
+                                 ops.nodeCoord(nd4)[1]])
+            
+            Ed[i, :] = np.array([ops.nodeEigenvector(nd1, modeNo)[0],
+                                 ops.nodeEigenvector(nd1, modeNo)[1],
+                                 ops.nodeEigenvector(nd2, modeNo)[0],
+                                 ops.nodeEigenvector(nd2, modeNo)[1],
+                                 ops.nodeEigenvector(nd3, modeNo)[0],
+                                 ops.nodeEigenvector(nd3, modeNo)[1],
+                                 ops.nodeEigenvector(nd4, modeNo)[0],
+                                 ops.nodeEigenvector(nd4, modeNo)[1]])
+            
+            lines.append(ax.plot([], [], **fmt_defo)[0])
+            
+        def init():
+            for j, ele_tag in enumerate(ele_tags):
+                lines[j].set_data([], [])
 
-            if modeNo:
-                ed = np.array([ops.nodeEigenvector(nd1, modeNo)[0],
-                               ops.nodeEigenvector(nd1, modeNo)[1],
-                               ops.nodeEigenvector(nd2, modeNo)[0],
-                               ops.nodeEigenvector(nd2, modeNo)[1],
-                               ops.nodeEigenvector(nd3, modeNo)[0],
-                               ops.nodeEigenvector(nd3, modeNo)[1],
-                               ops.nodeEigenvector(nd4, modeNo)[0],
-                               ops.nodeEigenvector(nd4, modeNo)[1]])
-            else:
-                ed = np.array([ops.nodeDisp(nd1)[0],
-                               ops.nodeDisp(nd1)[1],
-                               ops.nodeDisp(nd2)[0],
-                               ops.nodeDisp(nd2)[1],
-                               ops.nodeDisp(nd3)[0],
-                               ops.nodeDisp(nd3)[1],
-                               ops.nodeDisp(nd4)[0],
-                               ops.nodeDisp(nd4)[1]])
+            time_text.set_text('')
 
-            if unDefoFlag:
-                ax.plot(np.append(ex, ex[0]), np.append(ey, ey[0]),
-                        **fmt_undefo)
+            return tuple(lines) + (time_text,)
+        
+        
+        def animate(i):
+            for j, ele_tag in enumerate(ele_tags):
+                ex = Ex[j, :]
+                ey = Ey[j, :]
+                
+                # test it with one element
+                ed = Ed[j, :]
+                x = ex+sfac*np.cos(t[i])*ed[[0, 2, 4, 6]]
+                y = ey+sfac*np.cos(t[i])*ed[[1, 3, 5, 7]]
+                lines[j].set_data(np.append(x, x[0]), np.append(y, y[0]))
+                    
+                time_text.set_text(f'Mode: {modeNo} \
+                                   time: {t[i]:.3f} s')
 
-            # xcdi, ycdi = beam_defo_interp_2d(ex, ey, ed, sfac, nep)
-            # xdi, ydi = beam_disp_ends(ex, ey, ed, sfac)
-            # # interpolated displacement field
-            # plt.plot(xcdi, ycdi, 'b.-')
-            # # translations of ends only
-            # plt.plot(xdi, ydi, 'ro')
-
-            # test it with one element
-            x = ex+sfac*ed[[0, 2, 4, 6]]
-            y = ey+sfac*ed[[1, 3, 5, 7]]
-            ax.plot(np.append(x, x[0]), np.append(y, y[0]), 'b.-')
-
-        ax.axis('equal')
-        ax.grid(False)
+            return tuple(lines) + (time_text,)
+        
+        anim = FuncAnimation(fig, animate, init_func=init,
+                             frames=n_frames, interval=50, blit=True,
+                             repeat=False)
 
     # 2d 8-node quadratic elements
     # elif nen == 8:
@@ -385,9 +406,8 @@ def _anim_defo_2d(Eds, timeV, sfac, nep, unDefoFlag, fmt_defo, fmt_undefo,
             # ax.grid()
 
             nel = len(ele_tags)
-            Ecrd = np.zeros((nel, 2, 2))
-            # Ex = np.zeros((nel, 2))
-            # Ey = np.zeros((nel, 2))
+            Ex = np.zeros((nel, 2))
+            Ey = np.zeros((nel, 2))
             # no of frames equal to time intervals
             n_frames, _, _ = np.shape(Eds)
             lines = []
@@ -395,17 +415,13 @@ def _anim_defo_2d(Eds, timeV, sfac, nep, unDefoFlag, fmt_defo, fmt_undefo,
             # time_text = ax.set_title('')  # does not work
             time_text = ax.text(.05, .95, '', transform=ax.transAxes)
             for i, ele_tag in enumerate(ele_tags):
-                ele_node_tags = ops.eleNodes(ele_tag)
+                nd1, nd2 = ops.eleNodes(ele_tag)
 
-                for j, ele_node_tag in enumerate(ele_node_tags):
-                    Ecrd[i, j, :] = ops.nodeCoord(ele_node_tag)
-                # nd1, nd2 = ops.eleNodes(ele_tag)
-
-                # # element x, y coordinates
-                # Ex[i, :] = np.array([ops.nodeCoord(nd1)[0],
-                #                      ops.nodeCoord(nd2)[0]])
-                # Ey[i, :] = np.array([ops.nodeCoord(nd1)[1],
-                #                      ops.nodeCoord(nd2)[1]])
+                # element x, y coordinates
+                Ex[i, :] = np.array([ops.nodeCoord(nd1)[0],
+                                     ops.nodeCoord(nd2)[0]])
+                Ey[i, :] = np.array([ops.nodeCoord(nd1)[1],
+                                     ops.nodeCoord(nd2)[1]])
 
                 lines.append(ax.plot([], [], **fmt_defo)[0])
 
@@ -421,13 +437,14 @@ def _anim_defo_2d(Eds, timeV, sfac, nep, unDefoFlag, fmt_defo, fmt_undefo,
                 for j, ele_tag in enumerate(ele_tags):
 
                     if interpFlag:
-                        xcdi, ycdi = beam_defo_interp_2d(Ecrd[j, :, :],
+                        xcdi, ycdi = beam_defo_interp_2d(Ex[j, :],
+                                                         Ey[j, :],
                                                          Eds[i, j, :],
                                                          sfac,
                                                          nep)
                         lines[j].set_data(xcdi, ycdi)
                     else:
-                        xdi, ydi = beam_disp_ends(Ecrd[j, :, :],
+                        xdi, ydi = beam_disp_ends(Ex[j, :], Ey[j, :],
                                                   Eds[i, j, :], sfac)
                         lines[j].set_data(xdi, ydi)
 
@@ -454,56 +471,63 @@ time: {timeV[i]:.3f} s')
 
     # 2d quadrilateral (quad) elements
     elif nen == 4:
-        for ele_tag in ele_tags:
+        ax.axis('equal')
+        ax.grid(False)
+        ax.set_xlim(xlim[0], xlim[1])
+        ax.set_ylim(ylim[0], ylim[1])
+        
+        nel = len(ele_tags)
+        Ex = np.zeros((nel, 4))
+        Ey = np.zeros((nel, 4))
+        
+        # no of frames equal to time intervals
+        n_frames, _, _ = np.shape(Eds)
+        lines = []
+        
+        time_text = ax.text(.05, .95, '', transform=ax.transAxes)
+        
+        for i, ele_tag in enumerate(ele_tags):
             nd1, nd2, nd3, nd4 = ops.eleNodes(ele_tag)
 
             # element x, y coordinates
-            ex = np.array([ops.nodeCoord(nd1)[0],
-                           ops.nodeCoord(nd2)[0],
-                           ops.nodeCoord(nd3)[0],
-                           ops.nodeCoord(nd4)[0]])
-            ey = np.array([ops.nodeCoord(nd1)[1],
-                           ops.nodeCoord(nd2)[1],
-                           ops.nodeCoord(nd3)[1],
-                           ops.nodeCoord(nd4)[1]])
+            Ex[i, :] = np.array([ops.nodeCoord(nd1)[0],
+                                 ops.nodeCoord(nd2)[0],
+                                 ops.nodeCoord(nd3)[0],
+                                 ops.nodeCoord(nd4)[0]])
+            Ey[i, :] = np.array([ops.nodeCoord(nd1)[1],
+                                 ops.nodeCoord(nd2)[1],
+                                 ops.nodeCoord(nd3)[1],
+                                 ops.nodeCoord(nd4)[1]])
+            
+            lines.append(ax.plot([], [], **fmt_defo)[0])
+            
+        def init():
+            for j, ele_tag in enumerate(ele_tags):
+                lines[j].set_data([], [])
 
-            # if modeNo:
-            #     ed = np.array([ops.nodeEigenvector(nd1, modeNo)[0],
-            #                    ops.nodeEigenvector(nd1, modeNo)[1],
-            #                    ops.nodeEigenvector(nd2, modeNo)[0],
-            #                    ops.nodeEigenvector(nd2, modeNo)[1],
-            #                    ops.nodeEigenvector(nd3, modeNo)[0],
-            #                    ops.nodeEigenvector(nd3, modeNo)[1],
-            #                    ops.nodeEigenvector(nd4, modeNo)[0],
-            #                    ops.nodeEigenvector(nd4, modeNo)[1]])
-            # else:
-            ed = np.array([ops.nodeDisp(nd1)[0],
-                           ops.nodeDisp(nd1)[1],
-                           ops.nodeDisp(nd2)[0],
-                           ops.nodeDisp(nd2)[1],
-                           ops.nodeDisp(nd3)[0],
-                           ops.nodeDisp(nd3)[1],
-                           ops.nodeDisp(nd4)[0],
-                           ops.nodeDisp(nd4)[1]])
+            time_text.set_text('')
 
-            if unDefoFlag:
-                ax.plot(np.append(ex, ex[0]), np.append(ey, ey[0]),
-                        **fmt_undefo)
+            return tuple(lines) + (time_text,)
+        
+        
+        def animate(i):
+            for j, ele_tag in enumerate(ele_tags):
+                ex = Ex[j, :]
+                ey = Ey[j, :]
+                
+                # test it with one element
+                ed = Eds[i, j, :]
+                x = ex+sfac*ed[[0, 2, 4, 6]]
+                y = ey+sfac*ed[[1, 3, 5, 7]]
+                lines[j].set_data(np.append(x, x[0]), np.append(y, y[0]))
+                    
+                time_text.set_text(f'frame: {i+1}/{n_frames}, \
+                                   time: {timeV[i]:.3f} s')
 
-            # xcdi, ycdi = beam_defo_interp_2d(ex, ey, ed, sfac, nep)
-            # xdi, ydi = beam_disp_ends(ex, ey, ed, sfac)
-            # # interpolated displacement field
-            # plt.plot(xcdi, ycdi, 'b.-')
-            # # translations of ends only
-            # plt.plot(xdi, ydi, 'ro')
+            return tuple(lines) + (time_text,)
 
-            # test it with one element
-            x = ex+sfac*ed[[0, 2, 4, 6]]
-            y = ey+sfac*ed[[1, 3, 5, 7]]
-            ax.plot(np.append(x, x[0]), np.append(y, y[0]), 'b.-')
-
-        ax.axis('equal')
-        ax.grid(False)
+        anim = FuncAnimation(fig, animate, init_func=init, frames=n_frames,
+                                 interval=50, blit=True, repeat=False)
 
     # 2d 8-node quadratic elements
     # elif nen == 8:
